@@ -8,6 +8,7 @@ import {
   rotatePoint,
 } from "../math";
 import {
+  ExcalidrawElement,
   ExcalidrawLinearElement,
   ExcalidrawTextElement,
   NonDeletedExcalidrawElement,
@@ -19,6 +20,7 @@ import {
   getResizedElementAbsoluteCoords,
 } from "./bounds";
 import {
+  isExcalidrawElement,
   isFreeDrawElement,
   isLinearElement,
   isTextElement,
@@ -127,6 +129,7 @@ export const transformElements = (
       transformHandleType === "se"
     ) {
       resizeMultipleElements(
+        pointerDownState,
         selectedElements,
         transformHandleType,
         pointerX,
@@ -573,6 +576,7 @@ export const resizeSingleElement = (
 };
 
 const resizeMultipleElements = (
+  pointerDownState: PointerDownState,
   elements: readonly NonDeletedExcalidrawElement[],
   transformHandleType: "nw" | "ne" | "sw" | "se",
   pointerX: number,
@@ -580,12 +584,26 @@ const resizeMultipleElements = (
   isResizeFromCenter: boolean,
 ) => {
   const [x1, y1, x2, y2] = getCommonBounds(elements);
+  const startState = Array.from(pointerDownState.originalElements.values());
+  const [startX1, startY1, startX2, startY2] = getCommonBounds(
+    Array.from(pointerDownState.originalElements.values()),
+  );
+  // const [a1, b1, a2, b2] = getResizedElementAbsoluteCoords(
+  //   stateAtResizeStart,
+  //   stateAtResizeStart.width,
+  //   stateAtResizeStart.height,
+  // );
+  // const startTopLeft: Point = [x1, y1];
+  // const startBottomRight: Point = [x2, y2];
+  // const startCenter: Point = centerPoint(startTopLeft, startBottomRight);
+
   let scale: number;
   let getNextXY: (
     element: NonDeletedExcalidrawElement,
     origCoords: readonly [number, number, number, number],
     finalCoords: readonly [number, number, number, number],
   ) => { x: number; y: number };
+
   switch (transformHandleType) {
     case "se":
       scale = Math.max(
@@ -593,15 +611,33 @@ const resizeMultipleElements = (
         (pointerY - y1) / (y2 - y1),
       );
       getNextXY = (element, [origX1, origY1], [finalX1, finalY1]) => {
+        const elementStartState: any = startState.find(
+          (e) => e.id === element.id,
+        );
+
         const factorX = isResizeFromCenter
           ? origX1 - (x1 + x2) / 2
           : origX1 - x1;
+
         const factorY = isResizeFromCenter
           ? origY1 - (y1 + y2) / 2
           : origY1 - y1;
+          
 
-        const x = element.x + factorX * (scale - 1) + origX1 - finalX1;
-        const y = element.y + factorY * (scale - 1) + origY1 - finalY1;
+
+        const x = isResizeFromCenter
+          ? element.x + factorX * (scale - 1) + origX1 - finalX1
+          : elementStartState.x +
+            element.width -
+            elementStartState.width +
+            factorX * (scale - 1) +
+            elementStartState.x -
+            finalX1;
+
+        const y = isResizeFromCenter
+          ? element.y + factorY * (scale - 1) + origY1 - finalY1
+          : element.y + factorY * (scale - 1) + origY1 - finalY1;
+
         return { x, y };
       };
       break;
@@ -657,6 +693,7 @@ const resizeMultipleElements = (
       };
       break;
   }
+
   if (scale > 0) {
     const updates = elements.reduce(
       (prev, element) => {

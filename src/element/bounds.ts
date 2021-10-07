@@ -3,6 +3,7 @@ import {
   ExcalidrawLinearElement,
   Arrowhead,
   ExcalidrawFreeDrawElement,
+  NonDeletedExcalidrawElement,
 } from "./types";
 import { distance2d, rotate } from "../math";
 import rough from "roughjs/bin/rough";
@@ -391,7 +392,9 @@ export const getElementBounds = (
 };
 
 export const getCommonBounds = (
-  elements: readonly ExcalidrawElement[],
+  elements:
+    | readonly ExcalidrawElement[]
+    | readonly NonDeletedExcalidrawElement[],
 ): [number, number, number, number] => {
   if (!elements.length) {
     return [0, 0, 0, 0];
